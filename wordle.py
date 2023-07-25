@@ -1,30 +1,34 @@
 import pathlib
 import random
-from string import ascii_letters
+import contextlib
+from string import ascii_letters,ascii_lowercase
 from rich.console import Console
 from rich.theme import Theme
 
+
 console = Console(theme = Theme({"warning":"red on yellow"}))
 console.print("hello [bold red]rich[/] :snake: ")
+
+NUM_GUESS=6
+WORD_LEN=5 #the length of word we guess
 
 def refresh(headline):
     console.clear()
     console.rule(f"[bold red] :leafy_green: {headline} :leafy_green: [/] \n")
 
 def get_random_word(file):
-    word_length = 5 #the length of word we guess
 
     words = [
         word.lower()
         for word in pathlib.Path(file).read_text(encoding="utf-8").strip().split('\n')
-        if len(word) == word_length and all(letter in ascii_letters for letter in word)
+        if len(word) == WORD_LEN and all(letter in ascii_letters for letter in word)
     ]
     #check if length is empty
     if len(words) != 0:
         answer = random.choice(words)
         return answer
     else:
-        console.print("There is no words of length 5", style="warning")
+        console.print(f"There is no words of length {WORD_LEN}", style="warning")
         raise SystemExit()
 
 
@@ -40,6 +44,8 @@ def display_guess (guess_list, answer):
     # print ("Misplaced letters: ", ", ".join(misplace_letters))
     # print ("Wrong letters: ",", ".join(wrong_letters))
 
+    alphabets = {letter:letter for letter in ascii_lowercase}
+
     for guess in guess_list:
         styles_letters = []
         for letter, correct in zip(guess,answer):
@@ -52,15 +58,20 @@ def display_guess (guess_list, answer):
             else:
                 style = "dim"
             styles_letters.append(f"[{style}]{letter}[/]")
+            if letter != '_':
+                alphabets[letter] = f"[{style}]{letter}[/]"
         console.print("".join(styles_letters),justify="center")
+        
+    console.print("\n"+"".join(alphabets.values()),justify="center")
+
 
 def game_over (guess_list,answer,guess_correct):
     refresh(headline="Game over")
     display_guess(guess_list,answer)
     if guess_correct:
-        console.print(f"[bold red]You win! The answer is {answer}[/] ")
+        console.print(f"[bold red]You win! The answer is [/] {answer}[/] ")
     else:
-        console.print(f"[bold red]You lose! The answer is {answer}[/] ")
+        console.print(f"[bold red]You lose! The answer is[/] [bold green]{answer}[/] ")
 
 def guess_word(prev_words):
     
@@ -69,7 +80,7 @@ def guess_word(prev_words):
         if guess in prev_words:
             console.print(f"You've already guessed {guess}",style="warning")
             continue
-        elif len(guess) != 5:
+        elif len(guess) != WORD_LEN:
             console.print("The length of the word is not 5",style="warning")
             continue
         elif any((invalid := letter) not in ascii_letters for letter in guess):
@@ -84,17 +95,18 @@ def guess_word(prev_words):
 
 def main():
     answer = get_random_word("/home/kool/Wordle/wordList.txt")
-    guess_list = ["_"*5]*6
+    guess_list = ["_"*WORD_LEN]*NUM_GUESS
     guess_correct = 0
-    for i in range(6):
-        refresh(headline=f"Guess{i+1}")
-        display_guess(guess_list,answer)
-        guess_list[i] = guess_word(prev_words=guess_list[:i])
-        
-        if guess_list[i] == answer:
-            guess_correct = 1
-            print ("Correct")
-            break
+    with contextlib.suppress(KeyboardInterrupt):
+        for i in range(NUM_GUESS):
+            refresh(headline=f"Guess{i+1}")
+            display_guess(guess_list,answer)
+            guess_list[i] = guess_word(prev_words=guess_list[:i])
+            
+            if guess_list[i] == answer:
+                guess_correct = 1
+                print ("Correct")
+                break
     
     
     game_over(guess_list,answer,guess_correct)
