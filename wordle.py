@@ -2,8 +2,9 @@ import pathlib
 import random
 from string import ascii_letters
 from rich.console import Console
+from rich.theme import Theme
 
-console = Console()
+console = Console(theme = Theme({"warning":"red on yellow"}))
 console.print("hello [bold red]rich[/] :snake: ")
 
 def refresh(headline):
@@ -18,9 +19,14 @@ def get_random_word(file):
         for word in pathlib.Path(file).read_text(encoding="utf-8").strip().split('\n')
         if len(word) == word_length and all(letter in ascii_letters for letter in word)
     ]
-    answer = random.choice(words)
-    print(answer)
-    return answer
+    #check if length is empty
+    if len(words) != 0:
+        answer = random.choice(words)
+        return answer
+    else:
+        console.print("There is no words of length 5", style="warning")
+        raise SystemExit()
+
 
 #show which letters are guessed right and which are wrong
 def display_guess (guess_list, answer):
@@ -48,23 +54,50 @@ def display_guess (guess_list, answer):
             styles_letters.append(f"[{style}]{letter}[/]")
         console.print("".join(styles_letters),justify="center")
 
-def game_over (word):
-    print (f"The word was {word}")
+def game_over (guess_list,answer,guess_correct):
+    refresh(headline="Game over")
+    display_guess(guess_list,answer)
+    if guess_correct:
+        console.print(f"[bold red]You win! The answer is {answer}[/] ")
+    else:
+        console.print(f"[bold red]You lose! The answer is {answer}[/] ")
+
+def guess_word(prev_words):
+    
+    while 1:
+        guess = input(f"\nGuess {len(prev_words)+1}: ").lower()
+        if guess in prev_words:
+            console.print(f"You've already guessed {guess}",style="warning")
+            continue
+        elif len(guess) != 5:
+            console.print("The length of the word is not 5",style="warning")
+            continue
+        elif any((invalid := letter) not in ascii_letters for letter in guess):
+            console.print(
+                f"Invalid letter: '{invalid}'.Only English letters are allowed",
+                style = "warning"
+            )
+            continue
+        else:
+            return guess
+    
 
 def main():
     answer = get_random_word("/home/kool/Wordle/wordList.txt")
     guess_list = ["_"*5]*6
-
+    guess_correct = 0
     for i in range(6):
         refresh(headline=f"Guess{i+1}")
         display_guess(guess_list,answer)
-        guess_list[i] = input(f"\nGuess {i+1}: ").lower()
+        guess_list[i] = guess_word(prev_words=guess_list[:i])
         
         if guess_list[i] == answer:
+            guess_correct = 1
             print ("Correct")
             break
-    else:
-        game_over(answer)
+    
+    
+    game_over(guess_list,answer,guess_correct)
    
 
 if __name__ == "__main__":
